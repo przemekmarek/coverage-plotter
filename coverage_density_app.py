@@ -121,22 +121,27 @@ if dfp.empty:
     st.stop()
 
 # ----------------------------------------------------------------------------
-# Plot — one single-row heatmap trace per label; opacity scales with coverage
+# Plot — ONE heatmap trace with all labels as rows.
+# Multiple heatmap traces on a shared categorical axis clobber each other in
+# plotly.js, so instead we encode each row into its own band of a piecewise
+# colorscale: z = row_index + coverage/100, and band i fades from transparent
+# to fully saturated in that row's colour.
 # ----------------------------------------------------------------------------
-fig = go.Figure()
 
 # Reverse so the first label appears at the top
 plot_order = list(reversed(selected))
+n = len(plot_order)
+x_vals = dfp["Date"].dt.strftime("%Y-%m-%d").tolist()
+
+z_matrix = []          # encoded values: row band + coverage fraction
+custom_matrix = []     # [coverage, mean_ws] per cell, for hover
+colorscale = []
 
 for i, lab in enumerate(plot_order):
     base_idx = selected.index(lab)  # keep colour tied to original order
     r, g, b = hex_to_rgb(palette[base_idx % len(palette)])
-    colorscale = [
-        [0.0, f"rgba({r},{g},{b},0)"],
-        [1.0, f"rgba({r},{g},{b},1)"],
-    ]
 
-    cov = pd.to_numeric(dfp[f"{lab}_coverage"], errors="coerce").fillna(0)
+    cov = pd.to_numeric(dfp[f"{lab}_coverage"], errors="coerce").fillna(0).clip(0, 100)
     ws_col = ws_lookup[lab]
     ws = (
         pd.to_numeric(dfp[ws_col], errors="coerce")
@@ -144,27 +149,38 @@ for i, lab in enumerate(plot_order):
         else pd.Series([float("nan")] * len(dfp), index=dfp.index)
     )
 
-    fig.add_trace(
-        go.Heatmap(
-            x=dfp["Date"].dt.strftime("%Y-%m-%d").tolist(),
-            y=[lab] * len(dfp),
-            z=cov.tolist(),
-            zmin=0,
-            zmax=100,
-            colorscale=colorscale,
-            showscale=False,
-            xgap=1,
-            ygap=8,
-            customdata=ws.tolist(),
-            hovertemplate=(
-                f"<b>{lab}</b><br>"
-                "%{x|%b %Y}<br>"
-                "Coverage: %{z:.1f}%<br>"
-                "Mean WS: %{customdata:.2f} m/s"
-                "<extra></extra>"
-            ),
-        )
+    # Encode: values in [i, i + 0.999] belong to row i's colour band
+    z_matrix.append([i + (c / 100.0) * 0.999 for c in cov])
+    custom_matrix.append(
+        [[c, None if pd.isna(w) else round(float(w), 2)] for c, w in zip(cov, ws)]
     )
+
+    # Band i of the colorscale: transparent -> opaque in this row's colour
+    colorscale.append([i / n, f"rgba({r},{g},{b},0)"])
+    colorscale.append([(i + 0.999) / n, f"rgba({r},{g},{b},1)"])
+colorscale.append([1.0, colorscale[-1][1]])
+
+fig = go.Figure(
+    go.Heatmap(
+        x=x_vals,
+        y=plot_order,
+        z=z_matrix,
+        zmin=0,
+        zmax=n,
+        colorscale=colorscale,
+        showscale=False,
+        xgap=1,
+        ygap=8,
+        customdata=custom_matrix,
+        hovertemplate=(
+            "<b>%{y}</b><br>"
+            "%{x|%b %Y}<br>"
+            "Coverage: %{customdata[0]:.1f}%<br>"
+            "Mean WS: %{customdata[1]} m/s"
+            "<extra></extra>"
+        ),
+    )
+)
 
 fig.update_layout(
     height=max(300, bar_height * len(selected) + 120),
