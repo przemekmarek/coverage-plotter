@@ -146,16 +146,16 @@ for i, lab in enumerate(plot_order):
 
     fig.add_trace(
         go.Heatmap(
-            x=dfp["Date"],
+            x=dfp["Date"].dt.strftime("%Y-%m-%d").tolist(),
             y=[lab] * len(dfp),
-            z=cov,
+            z=cov.tolist(),
             zmin=0,
             zmax=100,
             colorscale=colorscale,
             showscale=False,
             xgap=1,
             ygap=8,
-            customdata=ws,
+            customdata=ws.tolist(),
             hovertemplate=(
                 f"<b>{lab}</b><br>"
                 "%{x|%b %Y}<br>"
@@ -172,6 +172,7 @@ fig.update_layout(
     plot_bgcolor="white",
     xaxis=dict(
         title="",
+        type="date",
         showgrid=True,
         gridcolor="rgba(0,0,0,0.08)",
         dtick="M3",
