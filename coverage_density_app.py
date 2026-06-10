@@ -98,6 +98,14 @@ st.sidebar.header("Display options")
 
 scheme_name = st.sidebar.selectbox("Colour scheme", list(COLOR_SCHEMES.keys()))
 palette = COLOR_SCHEMES[scheme_name]
+single_colour = st.sidebar.toggle("Same colour for all streams", value=False)
+
+tick_every = st.sidebar.selectbox(
+    "Month label every...",
+    [1, 2, 3, 6, 12],
+    index=2,
+    format_func=lambda m: f"{m} month" + ("s" if m > 1 else ""),
+)
 
 st.sidebar.subheader("Data streams")
 selected = [lab for lab in labels if st.sidebar.checkbox(lab, value=True, key=f"cb_{lab}")]
@@ -143,7 +151,7 @@ custom_matrix = []     # [coverage, mean_ws] per cell, for hover
 colorscale = []
 
 for i, lab in enumerate(plot_order):
-    base_idx = selected.index(lab)  # keep colour tied to original order
+    base_idx = 0 if single_colour else selected.index(lab)  # colour per stream, or one for all
     r, g, b = hex_to_rgb(palette[base_idx % len(palette)])
 
     cov = pd.to_numeric(dfp[f"{lab}_coverage"], errors="coerce").fillna(0).clip(0, 100)
@@ -196,7 +204,7 @@ fig.update_layout(
         type="date",
         showgrid=True,
         gridcolor="rgba(0,0,0,0.08)",
-        dtick="M3",
+        dtick=f"M{tick_every}",
         tickformat="%b<br>%Y",
         ticklabelmode="period",
         tickfont=dict(size=max(8, label_size - 3)),
