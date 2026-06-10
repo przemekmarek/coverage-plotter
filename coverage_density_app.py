@@ -32,6 +32,10 @@ COLOR_SCHEMES = {
         "#B5651D", "#8B4513", "#D2691E", "#A0522D", "#CC7722",
         "#806000", "#C46210", "#6F4E37",
     ],
+    "Brightwind": [
+        "#9CC537", "#2E3743", "#7F9C2F", "#4A5763", "#B3D154",
+        "#6E7884", "#5C7A1E", "#A6B1B9",
+    ],
 }
 
 
@@ -108,6 +112,7 @@ date_range = st.sidebar.slider(
 )
 
 bar_height = st.sidebar.slider("Row height (px)", 30, 120, 60)
+label_size = st.sidebar.slider("Label font size", 8, 28, 13)
 
 if not selected:
     st.warning("Tick at least one data stream in the sidebar.")
@@ -194,12 +199,13 @@ fig.update_layout(
         dtick="M3",
         tickformat="%b<br>%Y",
         ticklabelmode="period",
+        tickfont=dict(size=max(8, label_size - 3)),
     ),
     yaxis=dict(
         title="",
         categoryorder="array",
         categoryarray=plot_order,
-        tickfont=dict(size=13),
+        tickfont=dict(size=label_size),
     ),
 )
 
